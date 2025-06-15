@@ -24,13 +24,18 @@ const propertySchema = new mongoose.Schema({
   // --- CHANGE THIS LINE ---
   photo: { type: String, default: 'https://via.placeholder.com/600x400?text=No+Image' },
   // ------------------------
+  owner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User', // This references the 'User' model
+    required: true // A property must have an owner
+  },
   agent: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Agent',
     required: true
   },
   createdAt: { type: Date, default: Date.now }
-});
+}, { timestamps: true });
 
 const Property = mongoose.model('Property', propertySchema);
 

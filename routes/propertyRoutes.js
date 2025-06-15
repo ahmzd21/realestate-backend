@@ -2,13 +2,14 @@
 const express = require('express');
 const router = express.Router();
 const Property = require('../models/Property'); // Import Property model
+const { protect } = require('../middleware/authMiddleware'); // <--- IMPORT PROTECT MIDDLEWARE
 
 // @route   GET /api/properties
 // @desc    Get all properties
-// @access  Public
+// @access  Public (no change needed here)
 router.get('/', async (req, res) => {
   try {
-    const properties = await Property.find({}); // Fetch all properties
+    const properties = await Property.find({});
     res.json(properties);
   } catch (err) {
     console.error(err.message);
@@ -18,11 +19,9 @@ router.get('/', async (req, res) => {
 
 // @route   GET /api/properties/:id
 // @desc    Get property by ID
-// @access  Public
+// @access  Public (no change needed here)
 router.get('/:id', async (req, res) => {
   try {
-    // const property = await Property.findOne({ id: req.params.id }); // Find by the 'id' field
-    // In a real app, if you switch to using MongoDB's _id for all data, this would be:
     const property = await Property.findById(req.params.id);
 
     if (!property) {
@@ -31,7 +30,6 @@ router.get('/:id', async (req, res) => {
     res.json(property);
   } catch (err) {
     console.error(err.message);
-    // If the ID format is invalid (e.g., not an ObjectId if using findById), it throws a CastError
     if (err.kind === 'ObjectId') {
       return res.status(404).json({ msg: 'Property not found' });
     }
@@ -41,10 +39,9 @@ router.get('/:id', async (req, res) => {
 
 // @route   POST /api/properties
 // @desc    Add new property
-// @access  Private (will add authentication later)
-router.post('/', async (req, res) => {
+// @access  Private (now requires authentication)
+router.post('/', protect, async (req, res) => { // <--- ADD 'protect' MIDDLEWARE HERE
   const {
-    // id, // For now, we'll allow an 'id' to be passed for mock data migration
     title,
     location,
     price,
@@ -60,9 +57,7 @@ router.post('/', async (req, res) => {
   } = req.body;
 
   try {
-    // Create a new Property instance
     const newProperty = new Property({
-      // id, // Pass it if provided (for mock data)
       title,
       location,
       price,
@@ -74,12 +69,12 @@ router.post('/', async (req, res) => {
       image,
       description,
       amenities,
-      agentId
+      agentId,
+      owner: req.user.id // <--- IMPORTANT: Assign the property to the authenticated user
     });
 
-    // Save to database
     const property = await newProperty.save();
-    res.json(property);
+    res.status(201).json(property);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -88,8 +83,8 @@ router.post('/', async (req, res) => {
 
 // @route   PUT /api/properties/:id
 // @desc    Update a property by ID
-// @access  Private
-router.put('/:id', async (req, res) => {
+// @access  Private (now requires authentication)
+router.put('/:id', protect, async (req, res) => { // <--- ADD 'protect' MIDDLEWARE HERE
   const {
     title,
     location,
@@ -105,7 +100,6 @@ router.put('/:id', async (req, res) => {
     agentId
   } = req.body;
 
-  // Build property object
   const propertyFields = {};
   if (title) propertyFields.title = title;
   if (location) propertyFields.location = location;
@@ -120,21 +114,21 @@ router.put('/:id', async (req, res) => {
   if (amenities) propertyFields.amenities = amenities;
   if (agentId) propertyFields.agentId = agentId;
 
-
   try {
-    // let property = await Property.findOne({ id: req.params.id }); // Find by 'id'
-    // Or if using MongoDB's _id: 
     let property = await Property.findById(req.params.id);
 
     if (!property) return res.status(404).json({ msg: 'Property not found' });
 
-    // Update
+    // <--- OPTIONAL BUT RECOMMENDED: Ensure only the owner can update their property
+    if (property.owner && property.owner.toString() !== req.user.id) {
+        return res.status(401).json({ message: 'Not authorized to update this property' });
+    }
+    // Make sure your Property model has an 'owner' field of type mongoose.Schema.Types.ObjectId, ref: 'User'
+
     property = await Property.findByIdAndUpdate(
-      // { id: req.params.id }, // Find by 'id'
-      // Or if using MongoDB's _id: 
       { _id: req.params.id },
       { $set: propertyFields },
-      { new: true } // Return the updated document
+      { new: true }
     );
 
     res.json(property);
@@ -149,17 +143,23 @@ router.put('/:id', async (req, res) => {
 
 // @route   DELETE /api/properties/:id
 // @desc    Delete a property by ID
-// @access  Private
-router.delete('/:id', async (req, res) => {
+// @access  Private (now requires authentication)
+router.delete('/:id', protect, async (req, res) => { // <--- ADD 'protect' MIDDLEWARE HERE
   try {
-    // const property = await Property.findOneAndDelete({ id: req.params.id }); // Find and delete by 'id'
-    // Or if using MongoDB's _id: 
-    const property = await Property.findByIdAndDelete(req.params.id);
+    const property = await Property.findById(req.params.id);
 
     if (!property) {
       return res.status(404).json({ msg: 'Property not found' });
     }
 
+    // <--- OPTIONAL BUT RECOMMENDED: Ensure only the owner can delete their property
+    if (property.owner && property.owner.toString() !== req.user.id) {
+        return res.status(401).json({ message: 'Not authorized to delete this property' });
+    }
+    // Make sure your Property model has an 'owner' field of type mongoose.Schema.Types.ObjectId, ref: 'User'
+
+
+    await Property.findByIdAndDelete(req.params.id);
     res.json({ msg: 'Property removed' });
   } catch (err) {
     console.error(err.message);

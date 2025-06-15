@@ -11,6 +11,7 @@ const agentRoutes = require('./routes/agentRoutes');
 const reviewRoutes = require('./routes/reviewRoutes'); // <--- Import review routes
 const sellerInquiryRoutes = require('./routes/sellerInquiryRoutes'); // NEW: Import seller inquiry routes
 const contactRouter = require('./routes/contactRoutes'); // <--- ADD THIS LINE
+const authRoutes = require('./routes/authRoutes'); // <--- Import auth routes
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -52,3 +53,4 @@ app.use('/api/agents', agentRoutes);       // <--- Use agent routes
 app.use('/api/reviews', reviewRoutes);     // <--- Use review routes
 app.use('/api/seller-inquiries', sellerInquiryRoutes); // NEW: Use seller inquiry routes
 app.use('/api/contact', contactRouter); // <--- ADD THIS LINE: Mount the contact routes at /api/contact
+app.use('/api/auth', authRoutes); // <--- Use the authentication routes
